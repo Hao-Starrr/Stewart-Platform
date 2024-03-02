@@ -1,6 +1,8 @@
 #include "Platform.h"
 #include "eeprom.h"
 
+
+// 构造函数，初始化类
 Platform::Platform() {
   isCalibrated = false;
   isReady = false;
@@ -11,6 +13,7 @@ Platform::Platform() {
   }
 }
 
+// 初始化robot
 void Platform::setup() {
   for (int i = 0; i < NUM_ACTUATORS; i++) {
     actuators[i].setup();
@@ -19,14 +22,21 @@ void Platform::setup() {
   loadConfig(*this);
 }
 
+
+
+// loop once
 void Platform::loop() {
   for (int i = 0; i < NUM_ACTUATORS; i++) {
     actuators[i].loop();
   }
 }
 
+// 自动标定
 void Platform::calibrate() {
   for (int stage = 0; stage <= NUM_CALIB_STAGES; stage++) {
+    Serial.print("Calibrating: stage--");
+    Serial.print(stage);
+    Serial.println();
     for (int i = 0; i < NUM_ACTUATORS; i++) {
       actuators[i].calibrate();
     }
@@ -51,6 +61,7 @@ void Platform::calibrate() {
   isReady = true;
 }
 
+// ? 
 void Platform::calibrate(uint16_t (&settings)[NUM_ACTUATORS][2]) {
   for (int i = 0; i < NUM_ACTUATORS; i++) {
     actuators[i].calibrate(settings[i]);
@@ -59,6 +70,7 @@ void Platform::calibrate(uint16_t (&settings)[NUM_ACTUATORS][2]) {
   isReady = true;
 }
 
+// 纯z轴升降
 void Platform::retract() {
   setHeight(0);
 }
@@ -67,6 +79,7 @@ void Platform::extend() {
   setHeight(1);
 }
 
+// 所有actuator都伸长
 void Platform::setHeight(float height) {
   float arr[NUM_ACTUATORS];
   for (int i = 0; i < NUM_ACTUATORS; i++) {
@@ -75,6 +88,49 @@ void Platform::setHeight(float height) {
   setPlatformLengths(arr);
 }
 
+void Platform::setSpeeds(){
+  for (int i = 0; i < NUM_ACTUATORS; i++) {
+    speeds[i] = actuators[i].calculateSpeeds();
+  }
+  // 找到最小值和最大值
+  int minVal = speeds[0];
+  int maxVal = speeds[0];
+  for (int i = 1; i < 6; ++i) {
+      if (speeds[i] < minVal) {
+          minVal = speeds[i];
+      }
+      if (speeds[i] > maxVal) {
+          maxVal = speeds[i];
+      }
+  }
+
+  // 计算归一化的比例因子
+  double scaleFactor = 255.0 / (maxVal - minVal);
+
+  // 归一化数组
+  for (int i = 0; i < 6; ++i) {
+      speeds[i] = static_cast<int>((speeds[i] - minVal) * scaleFactor);
+      Serial.print(speeds[i]);
+      Serial.println();
+  }
+  
+  for (int i = 0; i < NUM_ACTUATORS; i++) {
+    actuators[i].normalizedSpeed = speeds[i];
+  }
+}
+
+// void setAcuatorsSpeeds_(float speeds[6]){
+//   for (int i = 0; i < NUM_ACTUATORS; i++) {
+//     if speeds[i]>0:
+//       actuators[i].extend(speeds[i]);
+//     else if speeds[i]==0:
+//       actuators[i].brake();
+//     else:
+//       actuators[i].retract(-speed[i]);
+//   }
+// }
+
+// ------------------------------- setPlatformPosition 系列 --------------------------//
 bool Platform::setPlatformPosition(float (&positions)[6]) {
   float x, y, z, roll, pitch, yaw;
   x = positions[0];
@@ -92,7 +148,6 @@ bool Platform::setPlatformPosition(float x, float y, float z, float roll, float 
   return setPlatformPosition(t, r);
 }
 
-// use plateform position and rotation to set actuator coordinates, and calculate actuator lengths
 bool Platform::setPlatformPosition(Vector3 &t, Vector3 &r) {
   #if VERBOSE > 0
     Serial.print("Translation: (");
@@ -106,19 +161,21 @@ bool Platform::setPlatformPosition(Vector3 &t, Vector3 &r) {
     Serial.print(r.z); Serial.println(")");
   #endif
   if (isPlatformReady()) {
+    // clip一下旋转角度（为什么不clip位置？位置也有limit的啊）
     translation = t;
     r.x = clip(r.x) * MAX_ROTATION;
     r.y = clip(r.y) * MAX_ROTATION;
     r.z = clip(r.z) * MAX_ROTATION;
     rotation = r;
-    calculateLengths(); // calculate the coordinates of each actuator
-    float lengths[NUM_ACTUATORS];
 
+    // 计算IK
+    calculateLengths();   // 在这里调用IK!!!
+
+    // 转换成relative显示
+    float lengths[NUM_ACTUATORS];
     #if VERBOSE > 0
       Serial.println("Absolute/relative lengths: ");
     #endif
-    
-    // convert to relavant length
     for (int i = 0; i < NUM_ACTUATORS; i++) {
       lengths[i] = convertLengthToRelative(l[i]);
       #if VERBOSE > 0
@@ -128,9 +185,9 @@ bool Platform::setPlatformPosition(Vector3 &t, Vector3 &r) {
       #endif
     }
     
-    // set target lengths to every actuator
-    return setPlatformLengths(lengths); 
-  } else {
+    return setPlatformLengths(lengths);   // 执行IK计算出的configurations
+  } 
+  else {
     #if VERBOSE > 0
       Serial.println("Platform is not ready, position not accepted"); Serial.println();
     #endif
@@ -138,6 +195,7 @@ bool Platform::setPlatformPosition(Vector3 &t, Vector3 &r) {
   }
 }
 
+// ------------------------------- setPlatformLengths 系列 ---------------------------//
 bool Platform::setPlatformLengths(float (&lengths)[6]) {
   if (isPlatformReady()) {
     for (int i = 0; i < NUM_ACTUATORS; i++) {
@@ -163,8 +221,7 @@ bool Platform::setPlatformLengths(float (&lengths)[6]) {
         Serial.print(lengths[i]); Serial.print(" ");
       #endif
       
-      // set into actuators
-      actuators[i].setLength(lengths[i]);
+      actuators[i].setLength(lengths[i]);   // 实际执行，其他都是log
     } 
     
     #if VERBOSE > 0
@@ -177,7 +234,7 @@ bool Platform::setPlatformLengths(float (&lengths)[6]) {
   }
 }
 
-// position ik 
+//------------------------------------ IK ------------------------------------------//
 void Platform::calculateLengths() {
   Vector3 q[NUM_ACTUATORS];
   for (int i = 0; i < NUM_ACTUATORS; i++) {
@@ -194,31 +251,33 @@ void Platform::calculateLengths() {
       cos(rotation.y)*sin(rotation.x)*platformJoint[i].y +
       cos(rotation.y)*cos(rotation.x)*platformJoint[i].z;
 
-    #if VERBOSE > 1
+    #if VERBOSE > 5
       Serial.print("l["); Serial.print(i); Serial.print("] with rotation applied: ");
       l[i].printVect(); Serial.println();
     #endif
 
     // translation
     l[i] += translation;
-    #if VERBOSE > 1
+    #if VERBOSE > 5
       Serial.print("l["); Serial.print(i); Serial.print("] with translation applied: ");
       l[i].printVect(); Serial.println();
     #endif
     
     l[i] += initialHeight;
-    #if VERBOSE > 1
+    #if VERBOSE > 5
       Serial.print("l["); Serial.print(i); Serial.print("] with initial height applied: ");
       l[i].printVect(); Serial.println();
     #endif
     
     l[i] -= baseJoint[i];
-    #if VERBOSE > 1
+    #if VERBOSE > 5
       Serial.print("l["); Serial.print(i); Serial.print("] with base joint applied: ");
       l[i].printVect(); Serial.println();
     #endif
   }
 }
+//----------------------------------- end IK -----------------------------------------//
+
 
 float Platform::convertLengthToRelative(Vector3 &v) {
   return ((float)v.Length() - ACTUATOR_MIN_LENGTH) / ACTUATOR_STROKE_LENGTH;

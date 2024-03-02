@@ -3,6 +3,8 @@
 
 #include "configuration.h"
 
+// actuator指的是直线电机
+
 class Actuator {
   private:
     const byte in1Pin;
@@ -18,19 +20,16 @@ class Actuator {
     bool isReady;
     int rawPosition;
     int filtPosition;
+    int filtSpeed;
     int targetPosition;
     int readings[SMOOTH];
+    int speeds[SMOOTH];
     int index;
     int total;
-
-    // new //////////////
-    int lastPosition; // unit
-    unsigned long lastTime; // ms
-    float speed;
-    float desiredSpeed; 
-    float Kp = 5.3; // not test
-    float Kd = 0.01; // not test
-    /////////////////////
+    int totalSpeed;
+    int speedPwm;
+    float relativeDifference;
+    // float coefficient[3] = {0.8,1.0,1.2};
 
     void extend();
     void extend(uint8_t pwm);
@@ -38,38 +37,28 @@ class Actuator {
     void retract(uint8_t pwm);
     void off();
     void brake();
+    int setSpeeds();
     
     void readPosition();
-    // new ///////////
-    void calculateSpeed(); 
-    /////////////////
 
   public:
   	Actuator(byte attachToIn1Pin, byte attachToIn2Pin, byte attachToEnaPin, byte attachToFeedbackPin);
   	
     void setup();
     void loop();
-    // new ////////////
-    void loopSpeed();
-    void loopPosition();
-    void loopPD();
-    /////////////////
+    int normalizedSpeed;
   	
   	void calibrate();
     void calibrate(uint16_t (&settings)[2]);
   	void setLength(float relativeLength);
-    // new ///////////
-    void setDesiredSpeed(float speed) { desiredSpeed = speed; }
-    /////////////////
     
   	bool isActuatorReady();
+    int calculateSpeeds();
     int getRawPosition();
     int getPosition();
     int getTargetPosition();
     int getMaxPosition();
     int getMinPosition();
-
-    
 };
 
 #endif

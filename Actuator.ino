@@ -1,5 +1,6 @@
 #include "Actuator.h"
 
+// 直线电机伸长
 void Actuator::Actuator::extend() {
   extend(255);
 }
@@ -10,6 +11,7 @@ void Actuator::Actuator::extend(uint8_t pwm) {
   analogWrite(enaPin, pwm);
 }
 
+// 直线电机缩回
 void Actuator::retract() {
   retract(255);
 }
@@ -20,18 +22,28 @@ void Actuator::retract(uint8_t pwm) {
   analogWrite(enaPin, pwm);
 }
 
+// 直线电机关闭
 void Actuator::off() { // leave motor floating
   digitalWrite(in1Pin, HIGH);
   digitalWrite(in2Pin, HIGH);
   digitalWrite(enaPin, LOW);
 }
 
+// 直线电机刹车
 void Actuator::brake() {
   digitalWrite(in1Pin, LOW);
   digitalWrite(in2Pin, LOW);
   digitalWrite(enaPin, LOW);
 }
 
+// 根据两个waypoint之间的距离为每个电机设置速度，原因是两个waypoint之间，每个电机要走的行程不一样，但是期望同时到达
+int Actuator::calculateSpeeds(){
+  relativeDifference = (targetPosition - filtPosition) / ACTUATOR_STROKE_LENGTH;
+  speedPwm = abs(100 * relativeDifference);
+  return speedPwm;
+}
+
+// 平滑feedback值，主要功能是更新filtPosition的值
 void Actuator::readPosition() {
   total -= readings[index];                // subtract the last value
   rawPosition = analogRead(feedbackPin);   // read the sensor
@@ -65,6 +77,7 @@ Actuator::Actuator(byte attachToIn1Pin, byte attachToIn2Pin, byte attachToEnaPin
   readPosition();
 }
 
+// 初始化，设置pinmode，置于关闭状态
 void Actuator::setup() {
   pinMode(in1Pin, OUTPUT);
   pinMode(in2Pin, OUTPUT);
@@ -73,16 +86,33 @@ void Actuator::setup() {
   off();
 }
 
+
+// 给定一个targetposition的情况下，运行loop，actuator就会运动到targetposition
+// 这个函数确切应该叫loop once
 void Actuator::loop() {
   readPosition();
+  float Kp = 2.0;
   if (isCalibrated && !isReady) {
     if (filtPosition <= targetPosition + TOLERANCE && filtPosition >= targetPosition - TOLERANCE) { 
-      brake();
+      // brake();
       isReady = true;
-    } else if (filtPosition > targetPosition + TOLERANCE) { 
+    } 
+    else if (filtPosition > targetPosition + TOLERANCE) { 
+      float speed = Kp* (filtPosition - targetPosition) + 10;
+      uint8_t constainedSpeed = min(255,speed);
+      // Serial.println(constainedSpeed);
+      // extend(constainedSpeed);
       extend();
-    } else if (filtPosition < targetPosition - TOLERANCE) { 
+
+    } 
+    else if (filtPosition < targetPosition - TOLERANCE) { 
+      float speed = Kp* (targetPosition - filtPosition) + 10;
+      uint8_t constainedSpeed = min(255,speed);
+      // Serial.println(constainedSpeed);
+
+      // retract(constainedSpeed);
       retract();
+
     }
   }
 }
@@ -98,6 +128,8 @@ void Actuator::loop() {
    7 - extend for final min
    8 - retract for final min
    9+ - set final min, done   */
+
+// 自动标定程序
 void Actuator::calibrate() {
   switch (calibrationStage) {
     case 0: 
@@ -148,6 +180,7 @@ void Actuator::calibrate() {
   }
 }
 
+// ?限制最大最小位置？
 void Actuator::calibrate(uint16_t (&settings)[2]) {
   maxPosition = settings[0];
   minPosition = settings[1];
@@ -155,6 +188,7 @@ void Actuator::calibrate(uint16_t (&settings)[2]) {
   isReady = true;
 }
 
+// 通过minposition，maxposition和relativeLength来确定targetposition
 void Actuator::setLength(float relativeLength) {
   if (isCalibrated && isReady) {
     isReady = false;
@@ -190,69 +224,3 @@ int Actuator::getMaxPosition() {
 int Actuator::getMinPosition() {
   return minPosition;
 }
-
-
-// new ///////////////////////
-void Actuator::calculateSpeed() {
-  unsigned long currentTime = millis(); 
-  int currentPosition = filtPosition; 
-
-  unsigned long timeDiff = currentTime - lastTime;
-  int positionDiff = currentPosition - lastPosition;
-
-  if (timeDiff > 0) {
-    speed = (positionDiff / (float)timeDiff) * 1000.0; // unit per second
-
-    lastPosition = currentPosition;
-    lastTime = currentTime;
-  }
-  
-}
-
-void Actuator::loopSpeed() {
-  calculateSpeed(); 
-
-  float speedError = desiredSpeed - speed;
-
-  uint8_t pwmAdjustment = static_cast<uint8_t>(Kp * speedError);
-
-  pwmAdjustment = max(0, min(pwmAdjustment, 255));
-
-  extend(pwmAdjustment);
-
-}
-
-// only use this is ok
-void Actuator::loopPosition() {
-  readPosition();
-
-  float positionError = targetPosition - filtPosition;
-
-  uint8_t pwmAdjustment = static_cast<uint8_t>(Kp * positionError);
-
-  pwmAdjustment = max(0, min(pwmAdjustment, 255));
-
-  extend(pwmAdjustment);
-
-}
-
-void Actuator::loopPD() {
-  readPosition();
-  calculateSpeed(); 
-
-  float positionError = targetPosition - filtPosition;
-  float speedError = desiredSpeed - speed;
-
-
-  uint8_t pwmAdjustment = static_cast<uint8_t>(Kp * positionError + Kd * speedError);
-
-  pwmAdjustment = max(0, min(pwmAdjustment, 255));
-
-  extend(pwmAdjustment);
-
-}
-
-//////////////////////////
-
-
-

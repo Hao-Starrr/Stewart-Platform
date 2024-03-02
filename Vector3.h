@@ -7,6 +7,7 @@
 // Copyright at end of file.
 // please see http://www.github.com/MarginallyClever/GcodeCNCDemo for more information.
 
+// everything about vector
 
 #include "Arduino.h"
 
@@ -21,7 +22,6 @@ public:
 public:
   inline Vector3() {}
 
-  
   inline Vector3( float xx, float yy, float zz ) {
     x = xx;
     y = yy;
@@ -62,6 +62,8 @@ public:
   }
 
 
+// 一元运算符重载
+
   inline Vector3 operator + () const {  // Unary negation
     return Vector3(*this);
   }
@@ -72,6 +74,8 @@ public:
   }
 
 
+// 赋值运算符重载
+// 标量乘
   inline Vector3 operator *= ( float v ) {  // assigned multiply by a float
     x *= v;
     y *= v;
@@ -80,7 +84,7 @@ public:
     return *this;
   }
 
-
+// 标量除
   inline Vector3 operator /= ( float t ) {  // assigned division by a float
     float v;
 
@@ -96,7 +100,7 @@ public:
     return *this;
   }
 
-
+// 向量减
   inline Vector3 operator -= ( const Vector3 &v ) {  // assigned subtraction
     x -= v.x;
     y -= v.y;
@@ -105,7 +109,7 @@ public:
     return *this;
   }
 
-
+// 向量加
   inline Vector3 operator += ( const Vector3 &v ) {  // assigned addition
     x += v.x;
     y += v.y;
@@ -114,7 +118,7 @@ public:
     return *this;
   }
 
-
+// 向量点乘
   inline Vector3 operator *= ( const Vector3 &v ) {  // assigned mult.
     x *= v.x;
     y *= v.y;
@@ -123,7 +127,7 @@ public:
     return *this;
   }
 
-
+// 向量叉乘
   inline Vector3 operator ^= ( const Vector3 &v ) {  // assigned cross product
     float nx, ny, nz;
     
@@ -153,6 +157,7 @@ public:
 
 
 // METHODS
+// 定义了一系列对向量操作的函数
   inline float Length() const {
     return (float)sqrt( *this | *this );
   }

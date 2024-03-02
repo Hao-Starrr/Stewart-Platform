@@ -2,7 +2,7 @@
 #define CONFIGURATION_H
 
 // verbose debug output
-#define VERBOSE 0  // 0, not verbose; >0 verbose; >1 more verbose
+#define VERBOSE 2  // 0, not verbose; >0 verbose; >1 more verbose
                    // note that this will decrease speed
 
 /* graphing data output
@@ -14,13 +14,12 @@
  * (previous line repeated indefinitely)
  */
 #define GRAPH 0  // 0, no graph data; >0, graph data
-
-#define DEMO 0 // 0, regular mode; >0, demo mode
+#define DEMO 1 // 0, regular mode; >0, demo mode
 
 
 // constants for sensor readings/movement
 #define SMOOTH      5  // smoothing factor, 5-50
-#define TOLERANCE  30  // 3% of 1024, can probably be lowered moving foward with speed control
+#define TOLERANCE  5  // 3% of 1024, can probably be lowered moving foward with speed control
 
 #define ACTUATOR_STROKE_LENGTH 12  // inches
 #define RELATIVE_MAX 1
@@ -34,7 +33,7 @@
 
 // calibration settings storage
 #define EEPROM_VERSION 1 // 0 to calibrate every time, 1 to load from EEPROM
-#define MAX_CYCLES 10    // how many cycles before recalibrating
+#define MAX_CYCLES 100    // how many cycles before recalibrating
 
 #define ADDR_VERSION  0                    // 1 byte, eeprom version
 #define ADDR_CYCLES   (ADDR_VERSION + 1)   // 1 byte, how many cycles have passed

@@ -12,6 +12,7 @@ class Platform {
     Vector3 translation, rotation, initialHeight;
     Vector3 l[NUM_ACTUATORS];
 
+    // base joint positions
     Vector3 baseJoint[NUM_ACTUATORS] = {
       Vector3(A1_BASE_X, A1_BASE_Y, BASE_Z_OFFSET),
       Vector3(A2_BASE_X, A2_BASE_Y, BASE_Z_OFFSET),
@@ -21,6 +22,7 @@ class Platform {
       Vector3(C2_BASE_X, C2_BASE_Y, BASE_Z_OFFSET),
     };
 
+    // platform joint positions
     Vector3 platformJoint[NUM_ACTUATORS] = {
       Vector3(A1_PLAT_X, A1_PLAT_Y, PLAT_Z_OFFSET),
       Vector3(A2_PLAT_X, A2_PLAT_Y, PLAT_Z_OFFSET),
@@ -30,6 +32,7 @@ class Platform {
       Vector3(C2_PLAT_X, C2_PLAT_Y, PLAT_Z_OFFSET),
     };
     
+    // acuator pins
     Actuator actuators[NUM_ACTUATORS] = {
       Actuator(IN1_A1, IN2_A1, ENA_A1, FEED_A1),
       Actuator(IN1_A2, IN2_A2, ENA_A2, FEED_A2),
@@ -43,6 +46,8 @@ class Platform {
     void calculateLengths();
     float clip(float f);
     
+    float speeds[6];
+    
     bool actuatorIsValid(int actuator);
 
   public:
@@ -50,6 +55,8 @@ class Platform {
 
     void setup();
     void loop();
+    void setSpeeds();
+    void setAcuatorsSpeeds_(float speeds[6]);
 
     void calibrate();
     void calibrate(uint16_t (&settings)[NUM_ACTUATORS][2]);
